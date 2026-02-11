@@ -7,7 +7,11 @@ interface ConfirmOptions {
 export function useConfirmAction(
   onConfirm: () => void,
   options: ConfirmOptions = {}
-): { confirming: boolean; handleConfirmClick: (event?: { stopPropagation?: () => void }) => void } {
+): {
+  confirming: boolean;
+  handleConfirmClick: (event?: { stopPropagation?: () => void }) => void;
+  resetConfirm: () => void;
+} {
   const { timeoutMs = 3000 } = options;
   const [confirming, setConfirming] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -44,5 +48,8 @@ export function useConfirmAction(
     [clearTimer, confirming, onConfirm, timeoutMs]
   );
 
-  return { confirming, handleConfirmClick };
+  return { confirming, handleConfirmClick, resetConfirm: () => {
+    clearTimer();
+    setConfirming(false);
+  } };
 }

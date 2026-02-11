@@ -5,7 +5,7 @@ interface WorktreeItemProps {
   worktree: WorktreeInfo;
   isSelected: boolean;
   onSelect: () => void;
-  onRemove: () => void;
+  onRemove: (force?: boolean) => void;
 }
 
 const BRANCH_COLORS = [
@@ -32,7 +32,11 @@ export function WorktreeItem({
   onSelect,
   onRemove,
 }: WorktreeItemProps): React.JSX.Element {
-  const { confirming: confirmDelete, handleConfirmClick: handleDelete } = useConfirmAction(onRemove);
+  const {
+    confirming: confirmDelete,
+    handleConfirmClick: handleDelete,
+    resetConfirm,
+  } = useConfirmAction(() => onRemove(false));
 
   return (
     <div
@@ -103,6 +107,9 @@ export function WorktreeItem({
               padding: '0 4px',
               borderRadius: 3,
               transition: 'color 0.15s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = '#ef4444';
@@ -111,7 +118,30 @@ export function WorktreeItem({
               e.currentTarget.style.color = confirmDelete ? '#ef4444' : 'var(--text-secondary)';
             }}
           >
-            {confirmDelete ? 'confirm?' : '×'}
+            {confirmDelete ? (
+              <>
+                <span
+                  onClick={handleDelete}
+                  style={{ color: '#ef4444' }}
+                  title="Confirm remove"
+                >
+                  confirm
+                </span>
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(true);
+                    resetConfirm();
+                  }}
+                  style={{ color: '#ef4444' }}
+                  title="Force remove (delete untracked files)"
+                >
+                  force
+                </span>
+              </>
+            ) : (
+              '×'
+            )}
           </span>
         )}
       </div>

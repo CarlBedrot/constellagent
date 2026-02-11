@@ -31,8 +31,8 @@ export function WorktreeList(): React.JSX.Element {
   }, [setRepoPath]);
 
   const handleRemove = useCallback(
-    async (path: string) => {
-      await removeWorktree(path, false);
+    async (path: string, force = false) => {
+      await removeWorktree(path, force);
     },
     [removeWorktree]
   );
@@ -159,7 +159,7 @@ export function WorktreeList(): React.JSX.Element {
               worktree={wt}
               isSelected={wt.path === selectedWorktree}
               onSelect={() => selectWorktree(wt.path)}
-              onRemove={() => handleRemove(wt.path)}
+              onRemove={(force) => handleRemove(wt.path, force)}
             />
           ))}
       </div>
