@@ -242,7 +242,18 @@ export class AgentService {
   }
 
   private stripAnsi(text: string): string {
-    return text.replace(/\x1B\[[0-9;]*m/g, '');
+    let result = text;
+    // Strip OSC sequences (e.g., hyperlinks, titles).
+    result = result.replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '');
+    // Strip CSI sequences (most ANSI formatting).
+    result = result.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
+    // Strip SS3 sequences.
+    result = result.replace(/\x1bO./g, '');
+    // Strip remaining ESC sequences.
+    result = result.replace(/\x1b[@-Z\\-_]/g, '');
+    // Remove other control chars except newline/tab/carriage return.
+    result = result.replace(/[^\x20-\x7E\r\n\t]/g, '');
+    return result;
   }
 
   private extractCommand(command: string): string {
