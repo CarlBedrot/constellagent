@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useWorktreeStore } from '@renderer/store/worktree-store';
 import { WorktreeItem } from './WorktreeItem';
 import { AddWorktreeDialog } from './AddWorktreeDialog';
+import { sectionTitleStyle, iconButtonStyle, ghostButtonStyle } from '@renderer/styles/ui';
 
 export function WorktreeList(): React.JSX.Element {
   const repoPath = useWorktreeStore((s) => s.repoPath);
@@ -34,28 +35,14 @@ export function WorktreeList(): React.JSX.Element {
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            color: 'var(--text-secondary)',
-            flex: 1,
-          }}
+          style={sectionTitleStyle}
         >
           Worktrees
         </span>
         {repoPath && (
           <span
             onClick={() => setShowDialog(true)}
-            style={{
-              fontSize: 16,
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              lineHeight: 1,
-              padding: '0 2px',
-              borderRadius: 3,
-            }}
+            style={iconButtonStyle}
             onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; }}
             title="Add worktree"
@@ -131,16 +118,7 @@ export function WorktreeList(): React.JSX.Element {
       {repoPath && (
         <button
           onClick={handleOpenRepo}
-          style={{
-            padding: '4px 8px',
-            borderRadius: 4,
-            border: 'none',
-            backgroundColor: 'transparent',
-            color: 'var(--text-secondary)',
-            fontSize: 11,
-            cursor: 'pointer',
-            textAlign: 'left',
-          }}
+          style={ghostButtonStyle}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; }}
         >

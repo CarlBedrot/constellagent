@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useConfirmAction } from '@renderer/hooks/useConfirmAction';
 import type { WorktreeInfo } from '../../../preload/api-types';
 
 interface WorktreeItemProps {
@@ -32,18 +32,7 @@ export function WorktreeItem({
   onSelect,
   onRemove,
 }: WorktreeItemProps): React.JSX.Element {
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (confirmDelete) {
-      onRemove();
-      setConfirmDelete(false);
-    } else {
-      setConfirmDelete(true);
-      setTimeout(() => setConfirmDelete(false), 3000);
-    }
-  };
+  const { confirming: confirmDelete, handleConfirmClick: handleDelete } = useConfirmAction(onRemove);
 
   return (
     <div

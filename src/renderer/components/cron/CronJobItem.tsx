@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useConfirmAction } from '@renderer/hooks/useConfirmAction';
 import type { CronJob } from '../../../preload/api-types';
 
 interface CronJobItemProps {
@@ -15,18 +15,7 @@ function formatTime(iso: string | null): string {
 }
 
 export function CronJobItem({ job, onToggle, onExecute, onRemove }: CronJobItemProps): React.JSX.Element {
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (confirmDelete) {
-      onRemove();
-      setConfirmDelete(false);
-    } else {
-      setConfirmDelete(true);
-      setTimeout(() => setConfirmDelete(false), 3000);
-    }
-  };
+  const { confirming: confirmDelete, handleConfirmClick: handleDelete } = useConfirmAction(onRemove);
 
   return (
     <div

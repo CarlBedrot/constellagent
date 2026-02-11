@@ -17,5 +17,5 @@
     },
     "baseUrl": "."
   },
-  "include": ["src/renderer/**/*"]
+  "include": ["src/renderer/**/*", "src/preload/api-types.ts"]
 }

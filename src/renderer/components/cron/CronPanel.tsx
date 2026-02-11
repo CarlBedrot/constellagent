@@ -3,6 +3,7 @@ import { useCronStore } from '@renderer/store/cron-store';
 import { useWorktreeStore } from '@renderer/store/worktree-store';
 import { CronJobItem } from './CronJobItem';
 import { CronExpressionInput } from './CronExpressionInput';
+import { sectionTitleStyle, iconButtonStyle } from '@renderer/styles/ui';
 
 export function CronPanel(): React.JSX.Element {
   const jobs = useCronStore((s) => s.jobs);
@@ -59,14 +60,7 @@ export function CronPanel(): React.JSX.Element {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            color: 'var(--text-secondary)',
-            flex: 1,
-          }}
+          style={sectionTitleStyle}
         >
           Cron Jobs
         </span>
@@ -86,14 +80,7 @@ export function CronPanel(): React.JSX.Element {
         )}
         <span
           onClick={() => setShowForm(!showForm)}
-          style={{
-            fontSize: 16,
-            color: 'var(--text-secondary)',
-            cursor: 'pointer',
-            lineHeight: 1,
-            padding: '0 2px',
-            borderRadius: 3,
-          }}
+          style={iconButtonStyle}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; }}
           title="Add job"

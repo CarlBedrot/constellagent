@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useEditorStore } from '@renderer/store/editor-store';
 import { useWorktreeStore } from '@renderer/store/worktree-store';
 import { FileTreeItem } from './FileTreeItem';
@@ -27,11 +27,25 @@ export function FileTree(): React.JSX.Element {
     }
   }, [selectedWorktree, loadDiffFiles]);
 
-  const grouped = GROUP_ORDER.map((status) => ({
-    status,
-    label: GROUP_LABELS[status],
-    files: diffFiles.filter((f) => f.status === status),
-  })).filter((g) => g.files.length > 0);
+  const grouped = useMemo(() => {
+    const buckets: Record<DiffFileStatus, DiffFile[]> = {
+      added: [],
+      modified: [],
+      deleted: [],
+      untracked: [],
+    };
+
+    // Single pass grouping avoids repeated filter scans on large file sets.
+    for (const file of diffFiles) {
+      buckets[file.status].push(file);
+    }
+
+    return GROUP_ORDER.map((status) => ({
+      status,
+      label: GROUP_LABELS[status],
+      files: buckets[status],
+    })).filter((g) => g.files.length > 0);
+  }, [diffFiles]);
 
   const handleSelect = (file: DiffFile) => {
     if (selectedWorktree) {

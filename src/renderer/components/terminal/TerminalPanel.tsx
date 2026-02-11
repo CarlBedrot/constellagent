@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTerminalStore } from '@renderer/store/terminal-store';
+import { useWorktreeStore } from '@renderer/store/worktree-store';
 import { TerminalTab } from './TerminalTab';
 import { TerminalInstance } from './TerminalInstance';
 
@@ -10,9 +11,11 @@ export function TerminalPanel(): React.JSX.Element {
   const removeSession = useTerminalStore((s) => s.removeSession);
   const setActiveSession = useTerminalStore((s) => s.setActiveSession);
   const hasCreatedInitial = useRef(false);
+  const selectedWorktree = useWorktreeStore((s) => s.selectedWorktree);
+  const [mountedSessionIds, setMountedSessionIds] = useState<string[]>([]);
 
   const createNewSession = useCallback(async () => {
-    const result = await window.api.pty.create();
+    const result = await window.api.pty.create(selectedWorktree ?? undefined);
     if (result.success) {
       const sessionNum = useTerminalStore.getState().sessions.length + 1;
       addSession({
@@ -20,12 +23,13 @@ export function TerminalPanel(): React.JSX.Element {
         title: `Terminal ${sessionNum}`,
       });
     }
-  }, [addSession]);
+  }, [addSession, selectedWorktree]);
 
   const closeSession = useCallback(
     (id: string) => {
       window.api.pty.destroy(id);
       removeSession(id);
+      setMountedSessionIds((prev) => prev.filter((sessionId) => sessionId !== id));
     },
     [removeSession]
   );
@@ -37,6 +41,17 @@ export function TerminalPanel(): React.JSX.Element {
       createNewSession();
     }
   }, [createNewSession]);
+
+  useEffect(() => {
+    if (activeSessionId && !mountedSessionIds.includes(activeSessionId)) {
+      // Lazy-mount terminals only once they become active to reduce initial load.
+      setMountedSessionIds((prev) => [...prev, activeSessionId]);
+    }
+  }, [activeSessionId, mountedSessionIds]);
+
+  useEffect(() => {
+    setMountedSessionIds((prev) => prev.filter((id) => sessions.some((s) => s.id === id)));
+  }, [sessions]);
 
   return (
     <div
@@ -98,7 +113,10 @@ export function TerminalPanel(): React.JSX.Element {
 
       {/* Terminal instances — each mounted, only active one visible */}
       <div style={{ flex: 1, position: 'relative' }}>
-        {sessions.map((session) => (
+        {mountedSessionIds
+          .map((id) => sessions.find((s) => s.id === id))
+          .filter((session): session is NonNullable<typeof session> => Boolean(session))
+          .map((session) => (
           <TerminalInstance
             key={session.id}
             sessionId={session.id}

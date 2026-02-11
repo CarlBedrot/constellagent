@@ -12,6 +12,7 @@ import '@xterm/xterm/css/xterm.css';
 
 export function App(): React.JSX.Element {
   const repoPath = useWorktreeStore((s) => s.repoPath);
+  const selectedWorktree = useWorktreeStore((s) => s.selectedWorktree);
   const sidebarRef = useRef<ImperativePanelHandle>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [layoutLoaded, setLayoutLoaded] = useState(false);
@@ -46,9 +47,11 @@ export function App(): React.JSX.Element {
   }, [repoPath, layoutLoaded]);
 
   // Debounced layout save
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveLayout = useCallback((updates: Record<string, number>) => {
-    clearTimeout(saveTimerRef.current);
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
     saveTimerRef.current = setTimeout(() => {
       window.api.layout.save(updates);
     }, 500);
@@ -65,7 +68,7 @@ export function App(): React.JSX.Element {
   }, [sidebarCollapsed]);
 
   const createTerminalSession = useCallback(async () => {
-    const result = await window.api.pty.create();
+    const result = await window.api.pty.create(selectedWorktree ?? undefined);
     if (result.success) {
       const sessionNum = useTerminalStore.getState().sessions.length + 1;
       useTerminalStore.getState().addSession({
@@ -73,12 +76,26 @@ export function App(): React.JSX.Element {
         title: `Terminal ${sessionNum}`,
       });
     }
-  }, []);
+  }, [selectedWorktree]);
 
   useKeyboardShortcuts({ toggleSidebar, createTerminalSession });
 
   // Derive title bar text
   const repoName = repoPath ? repoPath.split('/').pop() : null;
+
+  const titleBarStyle = {
+    height: 38,
+    minHeight: 38,
+    backgroundColor: 'var(--bg-secondary)',
+    borderBottom: '1px solid var(--border-color)',
+    display: 'flex',
+    alignItems: 'center',
+    paddingLeft: 80,
+    paddingRight: 16,
+    WebkitAppRegion: 'drag',
+    userSelect: 'none',
+    gap: 8,
+  } as React.CSSProperties & { WebkitAppRegion: string };
 
   if (!layoutLoaded) {
     return (
@@ -99,21 +116,7 @@ export function App(): React.JSX.Element {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Title bar */}
-      <div
-        style={{
-          height: 38,
-          minHeight: 38,
-          backgroundColor: 'var(--bg-secondary)',
-          borderBottom: '1px solid var(--border-color)',
-          display: 'flex',
-          alignItems: 'center',
-          paddingLeft: 80,
-          paddingRight: 16,
-          WebkitAppRegion: 'drag' as unknown as string,
-          userSelect: 'none',
-          gap: 8,
-        }}
-      >
+      <div style={titleBarStyle}>
         <span
           style={{
             fontSize: 13,

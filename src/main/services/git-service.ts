@@ -1,6 +1,6 @@
 import simpleGit, { type SimpleGit } from 'simple-git';
 import { existsSync } from 'fs';
-import { join, basename } from 'path';
+import { join } from 'path';
 
 export interface WorktreeInfo {
   path: string;
@@ -89,39 +89,33 @@ export class GitService {
     const git = this.getGit(worktreePath);
     const status = await git.status();
     const files: DiffFile[] = [];
+    const seen = new Set<string>();
+
+    const addFile = (path: string, fileStatus: DiffFileStatus): void => {
+      if (seen.has(path)) return;
+      seen.add(path);
+      files.push({
+        path,
+        absolutePath: join(worktreePath, path),
+        status: fileStatus,
+      });
+    };
 
     for (const f of status.staged) {
-      files.push({
-        path: f,
-        absolutePath: `${worktreePath}/${f}`,
-        status: 'added',
-      });
+      // Staged files can also appear in modified; keep first classification.
+      addFile(f, 'added');
     }
 
     for (const f of status.modified) {
-      if (!files.some((df) => df.path === f)) {
-        files.push({
-          path: f,
-          absolutePath: `${worktreePath}/${f}`,
-          status: 'modified',
-        });
-      }
+      addFile(f, 'modified');
     }
 
     for (const f of status.deleted) {
-      files.push({
-        path: f,
-        absolutePath: `${worktreePath}/${f}`,
-        status: 'deleted',
-      });
+      addFile(f, 'deleted');
     }
 
     for (const f of status.not_added) {
-      files.push({
-        path: f,
-        absolutePath: `${worktreePath}/${f}`,
-        status: 'untracked',
-      });
+      addFile(f, 'untracked');
     }
 
     return files;
