@@ -1,9 +1,11 @@
+import { useConfirmAction } from '@renderer/hooks/useConfirmAction';
 import type { AgentSession } from '../../../preload/api-types';
 
 interface AgentItemProps {
   agent: AgentSession;
   onStop: () => void;
   onRestart: () => void;
+  onRemove: () => void;
   onOpenTerminal: () => void;
   onOpenLogs: () => void;
   onTailLogs: () => void;
@@ -40,12 +42,15 @@ export function AgentItem({
   agent,
   onStop,
   onRestart,
+  onRemove,
   onOpenTerminal,
   onOpenLogs,
   onTailLogs,
 }: AgentItemProps): React.JSX.Element {
   const isActive = agent.status === 'running' || agent.status === 'starting' || agent.status === 'stopping';
   const canRestart = agent.status === 'detached' || agent.status === 'exited' || agent.status === 'error';
+  const canRemove = !isActive;
+  const { confirming: confirmRemove, handleConfirmClick: handleRemove } = useConfirmAction(onRemove);
 
   return (
     <div
@@ -160,6 +165,23 @@ export function AgentItem({
           }}
         >
           Stop
+        </button>
+        <button
+          onClick={handleRemove}
+          disabled={!canRemove}
+          style={{
+            padding: '2px 6px',
+            borderRadius: 4,
+            border: '1px solid var(--border-color)',
+            backgroundColor: canRemove ? 'transparent' : 'var(--bg-secondary)',
+            color: confirmRemove ? '#ef4444' : 'var(--text-secondary)',
+            fontSize: 10,
+            cursor: canRemove ? 'pointer' : 'default',
+            marginLeft: 6,
+          }}
+          title={canRemove ? 'Remove from list' : 'Stop agent before removing'}
+        >
+          {confirmRemove ? 'Confirm' : 'Remove'}
         </button>
       </div>
 

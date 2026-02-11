@@ -52,6 +52,7 @@ export function WorktreeList(): React.JSX.Element {
         id: result.agent.sessionId,
         title: result.agent.name,
       });
+      useTerminalStore.getState().assignSessionToActivePane(result.agent.sessionId);
       return;
     }
 

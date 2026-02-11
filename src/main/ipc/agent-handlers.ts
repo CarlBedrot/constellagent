@@ -68,5 +68,18 @@ export function registerAgentHandlers(
     }
   });
 
+  ipcMain.handle(IPC_CHANNELS.AGENT_REMOVE, async (_event, id: string) => {
+    try {
+      const ok = agentService.removeAgent(id);
+      if (!ok) return { success: false as const, error: 'Agent is still running' };
+      return { success: true as const, data: null };
+    } catch (error) {
+      return {
+        success: false as const,
+        error: error instanceof Error ? error.message : 'Failed to remove agent',
+      };
+    }
+  });
+
   return agentService;
 }

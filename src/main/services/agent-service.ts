@@ -143,6 +143,17 @@ export class AgentService {
     return true;
   }
 
+  removeAgent(id: string): boolean {
+    const agent = this.agents.get(id);
+    if (!agent) return false;
+    if (agent.status === 'running' || agent.status === 'starting' || agent.status === 'stopping') {
+      return false;
+    }
+    this.agents.delete(id);
+    this.persistAgents();
+    return true;
+  }
+
   async restartAgent(id: string): Promise<AgentSession | null> {
     const agent = this.agents.get(id);
     if (!agent) return null;

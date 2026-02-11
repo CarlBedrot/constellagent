@@ -130,6 +130,7 @@ export interface ElectronAPI {
     launch(params: { repoPath: string; command?: string }): Promise<IpcResponse<AgentSession>>;
     stop(id: string): Promise<IpcResponse<null>>;
     restart(id: string): Promise<IpcResponse<AgentSession>>;
+    remove(id: string): Promise<IpcResponse<null>>;
     onUpdated(callback: (agent: AgentSession) => void): void;
     removeAllListeners(): void;
   };

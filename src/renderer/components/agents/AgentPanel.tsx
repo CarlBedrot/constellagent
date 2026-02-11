@@ -12,6 +12,7 @@ export function AgentPanel(): React.JSX.Element {
   const initListeners = useAgentStore((s) => s.initListeners);
   const stopAgent = useAgentStore((s) => s.stopAgent);
   const restartAgent = useAgentStore((s) => s.restartAgent);
+  const removeAgent = useAgentStore((s) => s.removeAgent);
   const addSession = useTerminalStore((s) => s.addSession);
   const openFileAtPath = useEditorStore((s) => s.openFileAtPath);
 
@@ -90,6 +91,7 @@ export function AgentPanel(): React.JSX.Element {
             agent={agent}
             onStop={() => stopAgent(agent.id)}
             onRestart={() => restartAgent(agent.id)}
+            onRemove={() => removeAgent(agent.id)}
             onOpenTerminal={() => openTerminal(agent.worktreePath, agent.name)}
             onOpenLogs={() => openLogsInEditor(agent)}
             onTailLogs={() => openLogTail(agent)}

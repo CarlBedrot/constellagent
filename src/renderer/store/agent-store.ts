@@ -16,6 +16,7 @@ interface AgentState {
   launchAgent: (repoPath: string, command?: string) => Promise<LaunchResult>;
   stopAgent: (id: string) => Promise<void>;
   restartAgent: (id: string) => Promise<void>;
+  removeAgent: (id: string) => Promise<void>;
 }
 
 let listenersInitialized = false;
@@ -71,6 +72,15 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     if (result.success) {
       set((state) => ({
         agents: state.agents.map((a) => (a.id === id ? result.data : a)),
+      }));
+    }
+  },
+
+  removeAgent: async (id) => {
+    const result = await window.api.agent.remove(id);
+    if (result.success) {
+      set((state) => ({
+        agents: state.agents.filter((a) => a.id !== id),
       }));
     }
   },

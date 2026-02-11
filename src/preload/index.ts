@@ -129,6 +129,9 @@ contextBridge.exposeInMainWorld('api', {
     restart: (id: string) =>
       ipcRenderer.invoke(IPC_CHANNELS.AGENT_RESTART, id),
 
+    remove: (id: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.AGENT_REMOVE, id),
+
     onUpdated: (callback: (agent: unknown) => void) => {
       ipcRenderer.on(
         IPC_CHANNELS.AGENT_UPDATED,
