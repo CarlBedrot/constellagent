@@ -114,6 +114,28 @@ contextBridge.exposeInMainWorld('api', {
     },
   },
 
+  agent: {
+    list: () =>
+      ipcRenderer.invoke(IPC_CHANNELS.AGENT_LIST),
+
+    launch: (params: { repoPath: string; command?: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.AGENT_LAUNCH, params),
+
+    stop: (id: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.AGENT_STOP, id),
+
+    onUpdated: (callback: (agent: unknown) => void) => {
+      ipcRenderer.on(
+        IPC_CHANNELS.AGENT_UPDATED,
+        (_event, agent: unknown) => callback(agent)
+      );
+    },
+
+    removeAllListeners: () => {
+      ipcRenderer.removeAllListeners(IPC_CHANNELS.AGENT_UPDATED);
+    },
+  },
+
   layout: {
     get: () =>
       ipcRenderer.invoke(IPC_CHANNELS.LAYOUT_GET),

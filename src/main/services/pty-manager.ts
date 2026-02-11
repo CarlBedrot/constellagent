@@ -12,8 +12,8 @@ type ExitCallback = (sessionId: string, exitCode: number) => void;
 
 export class PtyManager {
   private sessions = new Map<string, PtySession>();
-  private dataListeners = new Map<string, DataCallback>();
-  private exitListeners = new Map<string, ExitCallback>();
+  private dataListeners = new Map<string, Set<DataCallback>>();
+  private exitListeners = new Map<string, Set<ExitCallback>>();
   private nextId = 1;
 
   create(cwd: string, shell?: string): { id: string } {
@@ -33,13 +33,20 @@ export class PtyManager {
     this.sessions.set(id, session);
 
     proc.onData((data: string) => {
-      const cb = this.dataListeners.get(id);
-      if (cb) cb(id, data);
+      const listeners = this.dataListeners.get(id);
+      if (!listeners) return;
+      for (const cb of listeners) {
+        cb(id, data);
+      }
     });
 
     proc.onExit(({ exitCode }) => {
-      const cb = this.exitListeners.get(id);
-      if (cb) cb(id, exitCode);
+      const listeners = this.exitListeners.get(id);
+      if (listeners) {
+        for (const cb of listeners) {
+          cb(id, exitCode);
+        }
+      }
       this.cleanup(id);
     });
 
@@ -69,11 +76,15 @@ export class PtyManager {
   }
 
   onData(sessionId: string, callback: DataCallback): void {
-    this.dataListeners.set(sessionId, callback);
+    const listeners = this.dataListeners.get(sessionId) ?? new Set<DataCallback>();
+    listeners.add(callback);
+    this.dataListeners.set(sessionId, listeners);
   }
 
   onExit(sessionId: string, callback: ExitCallback): void {
-    this.exitListeners.set(sessionId, callback);
+    const listeners = this.exitListeners.get(sessionId) ?? new Set<ExitCallback>();
+    listeners.add(callback);
+    this.exitListeners.set(sessionId, listeners);
   }
 
   destroyAll(): void {

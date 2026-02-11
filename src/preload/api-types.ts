@@ -42,6 +42,22 @@ export interface CronJob {
   nextRun: string | null;
 }
 
+export type AgentStatus = 'starting' | 'running' | 'stopping' | 'exited' | 'error';
+
+export interface AgentSession {
+  id: string;
+  name: string;
+  branch: string;
+  worktreePath: string;
+  sessionId: string;
+  command: string;
+  status: AgentStatus;
+  startedAt: string;
+  exitCode: number | null;
+  lastOutput: string[];
+  error?: string;
+}
+
 export interface LayoutConfig {
   sidebarSize: number;
   terminalSize: number;
@@ -102,6 +118,13 @@ export interface ElectronAPI {
     toggle(id: string): Promise<IpcResponse<CronJob>>;
     execute(id: string): Promise<IpcResponse<CronJob>>;
     onJobExecuted(callback: (job: CronJob) => void): void;
+    removeAllListeners(): void;
+  };
+  agent: {
+    list(): Promise<IpcResponse<AgentSession[]>>;
+    launch(params: { repoPath: string; command?: string }): Promise<IpcResponse<AgentSession>>;
+    stop(id: string): Promise<IpcResponse<null>>;
+    onUpdated(callback: (agent: AgentSession) => void): void;
     removeAllListeners(): void;
   };
   layout: {

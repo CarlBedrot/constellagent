@@ -1,5 +1,6 @@
 import { WorktreeList } from '../worktree/WorktreeList';
 import { CronPanel } from '../cron/CronPanel';
+import { AgentPanel } from '../agents/AgentPanel';
 
 export function Sidebar(): React.JSX.Element {
   return (
@@ -29,6 +30,18 @@ export function Sidebar(): React.JSX.Element {
 
       {/* Cron jobs section */}
       <CronPanel />
+
+      {/* Divider */}
+      <div
+        style={{
+          height: 1,
+          backgroundColor: 'var(--border-color)',
+          flexShrink: 0,
+        }}
+      />
+
+      {/* Agents section */}
+      <AgentPanel />
     </div>
   );
 }

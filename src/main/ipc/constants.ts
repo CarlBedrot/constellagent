@@ -36,6 +36,12 @@ export const IPC_CHANNELS = {
   CRON_TOGGLE: 'cron:toggle',
   CRON_EXECUTE: 'cron:execute',
   CRON_JOB_EXECUTED: 'cron:job-executed',
+
+  // Agent
+  AGENT_LIST: 'agent:list',
+  AGENT_LAUNCH: 'agent:launch',
+  AGENT_STOP: 'agent:stop',
+  AGENT_UPDATED: 'agent:updated',
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

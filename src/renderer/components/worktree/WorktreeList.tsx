@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useWorktreeStore } from '@renderer/store/worktree-store';
+import { useAgentStore } from '@renderer/store/agent-store';
+import { useTerminalStore } from '@renderer/store/terminal-store';
 import { WorktreeItem } from './WorktreeItem';
 import { AddWorktreeDialog } from './AddWorktreeDialog';
 import { sectionTitleStyle, iconButtonStyle, ghostButtonStyle } from '@renderer/styles/ui';
@@ -13,8 +15,13 @@ export function WorktreeList(): React.JSX.Element {
   const setRepoPath = useWorktreeStore((s) => s.setRepoPath);
   const selectWorktree = useWorktreeStore((s) => s.selectWorktree);
   const removeWorktree = useWorktreeStore((s) => s.removeWorktree);
+  const loadWorktrees = useWorktreeStore((s) => s.loadWorktrees);
+
+  const launchAgent = useAgentStore((s) => s.launchAgent);
 
   const [showDialog, setShowDialog] = useState(false);
+  const [launchingAgent, setLaunchingAgent] = useState(false);
+  const [launchError, setLaunchError] = useState<string | null>(null);
 
   const handleOpenRepo = useCallback(async () => {
     const result = await window.api.git.selectDirectory();
@@ -30,6 +37,27 @@ export function WorktreeList(): React.JSX.Element {
     [removeWorktree]
   );
 
+  const handleLaunchAgent = useCallback(async () => {
+    if (!repoPath || launchingAgent) return;
+    setLaunchingAgent(true);
+    setLaunchError(null);
+
+    const result = await launchAgent(repoPath);
+    setLaunchingAgent(false);
+
+    if (result.ok && result.agent) {
+      await loadWorktrees();
+      selectWorktree(result.agent.worktreePath);
+      useTerminalStore.getState().addSession({
+        id: result.agent.sessionId,
+        title: result.agent.name,
+      });
+      return;
+    }
+
+    setLaunchError(result.error ?? 'Failed to launch agent');
+  }, [repoPath, launchingAgent, launchAgent, loadWorktrees, selectWorktree]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0 }}>
       {/* Header row */}
@@ -39,6 +67,24 @@ export function WorktreeList(): React.JSX.Element {
         >
           Worktrees
         </span>
+        {repoPath && (
+          <button
+            onClick={handleLaunchAgent}
+            disabled={launchingAgent}
+            style={{
+              padding: '2px 6px',
+              borderRadius: 4,
+              border: '1px solid var(--border-color)',
+              backgroundColor: launchingAgent ? 'var(--bg-secondary)' : 'transparent',
+              color: 'var(--text-secondary)',
+              fontSize: 10,
+              cursor: launchingAgent ? 'default' : 'pointer',
+            }}
+            title="Create a worktree and launch Claude"
+          >
+            {launchingAgent ? 'Launching...' : 'Launch agent'}
+          </button>
+        )}
         {repoPath && (
           <span
             onClick={() => setShowDialog(true)}
@@ -100,6 +146,10 @@ export function WorktreeList(): React.JSX.Element {
 
         {error && (
           <span style={{ fontSize: 11, color: '#ef4444', padding: '4px 0' }}>{error}</span>
+        )}
+
+        {launchError && (
+          <span style={{ fontSize: 11, color: '#ef4444', padding: '4px 0' }}>{launchError}</span>
         )}
 
         {!loading &&

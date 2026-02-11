@@ -7,9 +7,14 @@ import { ptyBus } from './pty-bus';
 interface TerminalInstanceProps {
   sessionId: string;
   isVisible: boolean;
+  shouldFocus?: boolean;
 }
 
-export function TerminalInstance({ sessionId, isVisible }: TerminalInstanceProps): React.JSX.Element {
+export function TerminalInstance({
+  sessionId,
+  isVisible,
+  shouldFocus = false,
+}: TerminalInstanceProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -112,10 +117,10 @@ export function TerminalInstance({ sessionId, isVisible }: TerminalInstanceProps
         try { fitAddonRef.current?.fit(); } catch { /* ignore */ }
       });
     }
-    if (isVisible && terminalRef.current) {
+    if (shouldFocus && terminalRef.current) {
       terminalRef.current.focus();
     }
-  }, [isVisible]);
+  }, [isVisible, shouldFocus]);
 
   return (
     <div

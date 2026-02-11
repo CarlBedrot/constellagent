@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTerminalStore } from '@renderer/store/terminal-store';
 import { useWorktreeStore } from '@renderer/store/worktree-store';
 import { TerminalTab } from './TerminalTab';
@@ -7,9 +7,14 @@ import { TerminalInstance } from './TerminalInstance';
 export function TerminalPanel(): React.JSX.Element {
   const sessions = useTerminalStore((s) => s.sessions);
   const activeSessionId = useTerminalStore((s) => s.activeSessionId);
+  const splitCount = useTerminalStore((s) => s.splitCount);
+  const activePaneIndex = useTerminalStore((s) => s.activePaneIndex);
+  const paneSessions = useTerminalStore((s) => s.paneSessions);
   const addSession = useTerminalStore((s) => s.addSession);
   const removeSession = useTerminalStore((s) => s.removeSession);
-  const setActiveSession = useTerminalStore((s) => s.setActiveSession);
+  const assignSessionToActivePane = useTerminalStore((s) => s.assignSessionToActivePane);
+  const setSplitCount = useTerminalStore((s) => s.setSplitCount);
+  const setActivePaneIndex = useTerminalStore((s) => s.setActivePaneIndex);
   const hasCreatedInitial = useRef(false);
   const selectedWorktree = useWorktreeStore((s) => s.selectedWorktree);
   const [mountedSessionIds, setMountedSessionIds] = useState<string[]>([]);
@@ -42,12 +47,31 @@ export function TerminalPanel(): React.JSX.Element {
     }
   }, [createNewSession]);
 
+  const assignedSessionIds = useMemo(
+    () =>
+      paneSessions
+        .slice(0, splitCount)
+        .filter((id): id is string => Boolean(id)),
+    [paneSessions, splitCount]
+  );
+
   useEffect(() => {
     if (activeSessionId && !mountedSessionIds.includes(activeSessionId)) {
       // Lazy-mount terminals only once they become active to reduce initial load.
       setMountedSessionIds((prev) => [...prev, activeSessionId]);
     }
   }, [activeSessionId, mountedSessionIds]);
+
+  useEffect(() => {
+    if (assignedSessionIds.length === 0) return;
+    setMountedSessionIds((prev) => {
+      const next = new Set(prev);
+      for (const id of assignedSessionIds) {
+        next.add(id);
+      }
+      return Array.from(next);
+    });
+  }, [assignedSessionIds]);
 
   useEffect(() => {
     setMountedSessionIds((prev) => prev.filter((id) => sessions.some((s) => s.id === id)));
@@ -83,9 +107,33 @@ export function TerminalPanel(): React.JSX.Element {
               key={session.id}
               session={session}
               isActive={session.id === activeSessionId}
-              onSelect={() => setActiveSession(session.id)}
+              paneIndex={(() => {
+                const idx = paneSessions.findIndex((id) => id === session.id);
+                return idx >= 0 ? idx : undefined;
+              })()}
+              onSelect={() => assignSessionToActivePane(session.id)}
               onClose={() => closeSession(session.id)}
             />
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginRight: 6 }}>
+          {[1, 2, 3].map((count) => (
+            <button
+              key={count}
+              onClick={() => setSplitCount(count as 1 | 2 | 3)}
+              style={{
+                padding: '2px 6px',
+                borderRadius: 4,
+                border: '1px solid var(--border-color)',
+                backgroundColor: splitCount === count ? 'var(--accent)' : 'transparent',
+                color: splitCount === count ? '#fff' : 'var(--text-secondary)',
+                fontSize: 10,
+                cursor: 'pointer',
+              }}
+              title={`Split ${count} pane${count === 1 ? '' : 's'}`}
+            >
+              {count}x
+            </button>
           ))}
         </div>
         <div
@@ -111,26 +159,65 @@ export function TerminalPanel(): React.JSX.Element {
         </div>
       </div>
 
-      {/* Terminal instances — each mounted, only active one visible */}
-      <div style={{ flex: 1, position: 'relative' }}>
+      {/* Terminal instances */}
+      <div
+        style={{
+          flex: 1,
+          display: 'grid',
+          gridTemplateColumns: splitCount === 1 ? '1fr' : '1fr 1fr',
+          gridTemplateRows: splitCount === 3 ? '1fr 1fr' : '1fr',
+          gridTemplateAreas:
+            splitCount === 1
+              ? '"pane0"'
+              : splitCount === 2
+                ? '"pane0 pane1"'
+                : '"pane0 pane1" "pane0 pane2"',
+          gap: 1,
+          backgroundColor: 'var(--border-color)',
+        }}
+      >
         {mountedSessionIds
           .map((id) => sessions.find((s) => s.id === id))
           .filter((session): session is NonNullable<typeof session> => Boolean(session))
-          .map((session) => (
-          <TerminalInstance
-            key={session.id}
-            sessionId={session.id}
-            isVisible={session.id === activeSessionId}
-          />
-        ))}
+          .map((session) => {
+            const paneIndex = paneSessions.findIndex((id) => id === session.id);
+            const isAssigned = paneIndex >= 0 && paneIndex < splitCount;
+            if (!isAssigned) {
+              return (
+                <div key={session.id} style={{ display: 'none' }}>
+                  <TerminalInstance sessionId={session.id} isVisible={false} />
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={session.id}
+                onMouseDown={() => setActivePaneIndex(paneIndex)}
+                style={{
+                  gridArea: `pane${paneIndex}`,
+                  position: 'relative',
+                  backgroundColor: 'var(--bg-primary)',
+                  border: paneIndex === activePaneIndex ? '1px solid var(--accent)' : '1px solid transparent',
+                }}
+              >
+                <TerminalInstance
+                  sessionId={session.id}
+                  isVisible={true}
+                  shouldFocus={paneIndex === activePaneIndex}
+                />
+              </div>
+            );
+          })}
+
         {sessions.length === 0 && (
           <div
             style={{
-              position: 'absolute',
-              inset: 0,
+              gridArea: 'pane0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              backgroundColor: 'var(--bg-primary)',
             }}
           >
             <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
@@ -138,6 +225,30 @@ export function TerminalPanel(): React.JSX.Element {
             </span>
           </div>
         )}
+
+        {sessions.length > 0 &&
+          Array.from({ length: splitCount }).map((_, paneIndex) => {
+            const paneAssigned = paneSessions[paneIndex];
+            if (paneAssigned) return null;
+            return (
+              <div
+                key={`empty-${paneIndex}`}
+                onMouseDown={() => setActivePaneIndex(paneIndex)}
+                style={{
+                  gridArea: `pane${paneIndex}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'var(--bg-primary)',
+                  border: paneIndex === activePaneIndex ? '1px solid var(--accent)' : '1px solid transparent',
+                }}
+              >
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  Select a tab
+                </span>
+              </div>
+            );
+          })}
       </div>
     </div>
   );

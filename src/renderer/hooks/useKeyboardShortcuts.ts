@@ -58,7 +58,7 @@ export function useKeyboardShortcuts(actions: ShortcutActions): void {
         const idx = parseInt(e.key, 10) - 1;
         const { sessions } = useTerminalStore.getState();
         if (idx < sessions.length) {
-          useTerminalStore.getState().setActiveSession(sessions[idx].id);
+          useTerminalStore.getState().assignSessionToActivePane(sessions[idx].id);
         }
         return;
       }

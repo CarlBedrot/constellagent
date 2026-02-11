@@ -3,11 +3,18 @@ import type { TerminalSession } from '@renderer/store/terminal-store';
 interface TerminalTabProps {
   session: TerminalSession;
   isActive: boolean;
+  paneIndex?: number;
   onSelect: () => void;
   onClose: () => void;
 }
 
-export function TerminalTab({ session, isActive, onSelect, onClose }: TerminalTabProps): React.JSX.Element {
+export function TerminalTab({
+  session,
+  isActive,
+  paneIndex,
+  onSelect,
+  onClose,
+}: TerminalTabProps): React.JSX.Element {
   return (
     <div
       onClick={onSelect}
@@ -34,6 +41,22 @@ export function TerminalTab({ session, isActive, onSelect, onClose }: TerminalTa
       <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {session.title}
       </span>
+      {paneIndex !== undefined && (
+        <span
+          style={{
+            fontSize: 9,
+            fontWeight: 600,
+            color: 'var(--text-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 9999,
+            padding: '0 4px',
+            lineHeight: '14px',
+          }}
+          title={`Pane ${paneIndex + 1}`}
+        >
+          {paneIndex + 1}
+        </span>
+      )}
       <span
         onClick={(e) => {
           e.stopPropagation();
