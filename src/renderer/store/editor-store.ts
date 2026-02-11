@@ -16,6 +16,7 @@ interface EditorState {
 
   loadDiffFiles: (worktreePath: string) => Promise<void>;
   openFileForEdit: (worktreePath: string, file: DiffFile) => Promise<void>;
+  openFileAtPath: (basePath: string, filePath: string, displayPath?: string) => Promise<void>;
   toggleDiffMode: () => void;
   saveFile: () => Promise<boolean>;
   closeFile: () => void;
@@ -54,6 +55,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         content: readResult.data.content,
         originalContent,
       },
+    });
+  },
+
+  openFileAtPath: async (basePath: string, filePath: string, displayPath?: string) => {
+    await window.api.file.addAllowedPath(basePath);
+    const readResult = await window.api.file.read(filePath);
+    if (!readResult.success) return;
+
+    set({
+      openFile: {
+        path: displayPath ?? filePath,
+        absolutePath: filePath,
+        content: readResult.data.content,
+        originalContent: '',
+      },
+      isDiffMode: false,
     });
   },
 

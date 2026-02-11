@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAgentStore } from '@renderer/store/agent-store';
 import { useTerminalStore } from '@renderer/store/terminal-store';
+import { useEditorStore } from '@renderer/store/editor-store';
 import { AgentItem } from './AgentItem';
 import { sectionTitleStyle } from '@renderer/styles/ui';
 
@@ -12,6 +13,7 @@ export function AgentPanel(): React.JSX.Element {
   const stopAgent = useAgentStore((s) => s.stopAgent);
   const restartAgent = useAgentStore((s) => s.restartAgent);
   const addSession = useTerminalStore((s) => s.addSession);
+  const openFileAtPath = useEditorStore((s) => s.openFileAtPath);
 
   useEffect(() => {
     initListeners();
@@ -24,12 +26,29 @@ export function AgentPanel(): React.JSX.Element {
     addSession({ id: result.data.sessionId, title });
   };
 
-  const openLogs = async (agent: { worktreePath: string; logPath: string | null; name: string }) => {
+  const openLogTail = async (agent: { worktreePath: string; logPath: string | null; name: string }) => {
     if (!agent.logPath) return;
     const result = await window.api.pty.create(agent.worktreePath);
     if (!result.success) return;
     addSession({ id: result.data.sessionId, title: `${agent.name} logs` });
     window.api.pty.write(result.data.sessionId, `tail -n 200 -f \"${agent.logPath}\"\n`);
+  };
+
+  const openLogsInEditor = async (agent: { worktreePath: string; logPath: string | null }) => {
+    if (!agent.logPath) return;
+    const unixPrefix = agent.worktreePath.endsWith('/')
+      ? agent.worktreePath
+      : `${agent.worktreePath}/`;
+    const windowsPrefix = agent.worktreePath.endsWith('\\')
+      ? agent.worktreePath
+      : `${agent.worktreePath}\\`;
+    let displayPath = agent.logPath;
+    if (displayPath.startsWith(unixPrefix)) {
+      displayPath = displayPath.slice(unixPrefix.length);
+    } else if (displayPath.startsWith(windowsPrefix)) {
+      displayPath = displayPath.slice(windowsPrefix.length);
+    }
+    await openFileAtPath(agent.worktreePath, agent.logPath, displayPath);
   };
 
   return (
@@ -72,7 +91,8 @@ export function AgentPanel(): React.JSX.Element {
             onStop={() => stopAgent(agent.id)}
             onRestart={() => restartAgent(agent.id)}
             onOpenTerminal={() => openTerminal(agent.worktreePath, agent.name)}
-            onOpenLogs={() => openLogs(agent)}
+            onOpenLogs={() => openLogsInEditor(agent)}
+            onTailLogs={() => openLogTail(agent)}
           />
         ))}
       </div>

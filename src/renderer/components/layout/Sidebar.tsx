@@ -1,6 +1,7 @@
 import { WorktreeList } from '../worktree/WorktreeList';
 import { CronPanel } from '../cron/CronPanel';
 import { AgentPanel } from '../agents/AgentPanel';
+import { OnboardingCard } from './OnboardingCard';
 
 export function Sidebar(): React.JSX.Element {
   return (
@@ -17,6 +18,8 @@ export function Sidebar(): React.JSX.Element {
       }}
     >
       {/* Worktrees section */}
+      <OnboardingCard />
+
       <WorktreeList />
 
       {/* Divider */}

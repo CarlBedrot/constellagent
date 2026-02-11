@@ -6,6 +6,7 @@ interface AgentItemProps {
   onRestart: () => void;
   onOpenTerminal: () => void;
   onOpenLogs: () => void;
+  onTailLogs: () => void;
 }
 
 function formatTime(iso: string): string {
@@ -41,6 +42,7 @@ export function AgentItem({
   onRestart,
   onOpenTerminal,
   onOpenLogs,
+  onTailLogs,
 }: AgentItemProps): React.JSX.Element {
   const isActive = agent.status === 'running' || agent.status === 'starting' || agent.status === 'stopping';
   const canRestart = agent.status === 'detached' || agent.status === 'exited' || agent.status === 'error';
@@ -112,6 +114,21 @@ export function AgentItem({
           }}
         >
           Logs
+        </button>
+        <button
+          onClick={onTailLogs}
+          disabled={!agent.logPath}
+          style={{
+            padding: '2px 6px',
+            borderRadius: 4,
+            border: '1px solid var(--border-color)',
+            backgroundColor: agent.logPath ? 'transparent' : 'var(--bg-secondary)',
+            color: 'var(--text-secondary)',
+            fontSize: 10,
+            cursor: agent.logPath ? 'pointer' : 'default',
+          }}
+        >
+          Tail
         </button>
         <button
           onClick={onRestart}
