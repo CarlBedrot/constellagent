@@ -31,18 +31,22 @@ export interface DiffFile {
   status: DiffFileStatus;
 }
 
+export type CronJobKind = 'command' | 'agent';
+
 export interface CronJob {
   id: string;
   name: string;
+  kind: CronJobKind;
   expression: string;
   command: string;
   cwd: string;
+  repoPath?: string | null;
   enabled: boolean;
   lastRun: string | null;
   nextRun: string | null;
 }
 
-export type AgentStatus = 'starting' | 'running' | 'stopping' | 'exited' | 'error';
+export type AgentStatus = 'starting' | 'running' | 'stopping' | 'detached' | 'exited' | 'error';
 
 export interface AgentSession {
   id: string;
@@ -55,6 +59,7 @@ export interface AgentSession {
   startedAt: string;
   exitCode: number | null;
   lastOutput: string[];
+  logPath: string | null;
   error?: string;
 }
 
@@ -124,6 +129,7 @@ export interface ElectronAPI {
     list(): Promise<IpcResponse<AgentSession[]>>;
     launch(params: { repoPath: string; command?: string }): Promise<IpcResponse<AgentSession>>;
     stop(id: string): Promise<IpcResponse<null>>;
+    restart(id: string): Promise<IpcResponse<AgentSession>>;
     onUpdated(callback: (agent: AgentSession) => void): void;
     removeAllListeners(): void;
   };

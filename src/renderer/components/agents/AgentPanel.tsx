@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useAgentStore } from '@renderer/store/agent-store';
+import { useTerminalStore } from '@renderer/store/terminal-store';
 import { AgentItem } from './AgentItem';
 import { sectionTitleStyle } from '@renderer/styles/ui';
 
@@ -9,11 +10,27 @@ export function AgentPanel(): React.JSX.Element {
   const loadAgents = useAgentStore((s) => s.loadAgents);
   const initListeners = useAgentStore((s) => s.initListeners);
   const stopAgent = useAgentStore((s) => s.stopAgent);
+  const restartAgent = useAgentStore((s) => s.restartAgent);
+  const addSession = useTerminalStore((s) => s.addSession);
 
   useEffect(() => {
     initListeners();
     loadAgents();
   }, [initListeners, loadAgents]);
+
+  const openTerminal = async (worktreePath: string, title: string) => {
+    const result = await window.api.pty.create(worktreePath);
+    if (!result.success) return;
+    addSession({ id: result.data.sessionId, title });
+  };
+
+  const openLogs = async (agent: { worktreePath: string; logPath: string | null; name: string }) => {
+    if (!agent.logPath) return;
+    const result = await window.api.pty.create(agent.worktreePath);
+    if (!result.success) return;
+    addSession({ id: result.data.sessionId, title: `${agent.name} logs` });
+    window.api.pty.write(result.data.sessionId, `tail -n 200 -f \"${agent.logPath}\"\n`);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0 }}>
@@ -49,7 +66,14 @@ export function AgentPanel(): React.JSX.Element {
         )}
 
         {agents.map((agent) => (
-          <AgentItem key={agent.id} agent={agent} onStop={() => stopAgent(agent.id)} />
+          <AgentItem
+            key={agent.id}
+            agent={agent}
+            onStop={() => stopAgent(agent.id)}
+            onRestart={() => restartAgent(agent.id)}
+            onOpenTerminal={() => openTerminal(agent.worktreePath, agent.name)}
+            onOpenLogs={() => openLogs(agent)}
+          />
         ))}
       </div>
     </div>

@@ -5,9 +5,11 @@ import { randomUUID } from 'crypto';
 export interface CronJob {
   id: string;
   name: string;
+  kind: 'command' | 'agent';
   expression: string;
   command: string;
   cwd: string;
+  repoPath?: string | null;
   enabled: boolean;
   lastRun: string | null;
   nextRun: string | null;
@@ -36,22 +38,26 @@ export class CronService {
   }
 
   listJobs(): CronJob[] {
-    return this.store.get('cronJobs', []);
+    return this.store.get('cronJobs', []).map((job) => this.normalizeJob(job));
   }
 
   addJob(params: {
     name: string;
+    kind?: CronJob['kind'];
     expression: string;
     command: string;
     cwd: string;
+    repoPath?: string | null;
     enabled: boolean;
   }): CronJob {
     const job: CronJob = {
       id: randomUUID(),
       name: params.name,
+      kind: params.kind ?? 'command',
       expression: params.expression,
       command: params.command,
       cwd: params.cwd,
+      repoPath: params.repoPath ?? null,
       enabled: params.enabled,
       lastRun: null,
       nextRun: null,
@@ -73,7 +79,7 @@ export class CronService {
     const idx = jobs.findIndex((j) => j.id === id);
     if (idx === -1) return null;
 
-    const updated = { ...jobs[idx], ...updates };
+    const updated = this.normalizeJob({ ...jobs[idx], ...updates });
     jobs[idx] = updated;
     this.store.set('cronJobs', jobs);
 
@@ -168,5 +174,13 @@ export class CronService {
       jobs[idx].lastRun = lastRun;
       this.store.set('cronJobs', jobs);
     }
+  }
+
+  private normalizeJob(job: CronJob): CronJob {
+    return {
+      ...job,
+      kind: job.kind ?? 'command',
+      repoPath: job.repoPath ?? null,
+    };
   }
 }

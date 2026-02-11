@@ -41,6 +41,7 @@ export const IPC_CHANNELS = {
   AGENT_LIST: 'agent:list',
   AGENT_LAUNCH: 'agent:launch',
   AGENT_STOP: 'agent:stop',
+  AGENT_RESTART: 'agent:restart',
   AGENT_UPDATED: 'agent:updated',
 } as const;
 

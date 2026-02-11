@@ -1,12 +1,23 @@
 import { ipcMain, type BrowserWindow } from 'electron';
 import { IPC_CHANNELS } from './constants';
 import { CronService } from '../services/cron-service';
+import type { AgentService } from '../services/agent-service';
 
-export function registerCronHandlers(mainWindow: BrowserWindow): CronService {
+export function registerCronHandlers(
+  mainWindow: BrowserWindow,
+  agentService?: AgentService
+): CronService {
   const cronService = new CronService();
 
   // Notify renderer when a cron job executes
   cronService.onExecute((job) => {
+    if (job.kind === 'agent' && agentService && job.repoPath) {
+      agentService
+        .launchAgent({ repoPath: job.repoPath, command: job.command })
+        .catch((error) => {
+          console.error('Failed to launch agent from cron job:', error);
+        });
+    }
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send(IPC_CHANNELS.CRON_JOB_EXECUTED, job);
     }
@@ -33,9 +44,11 @@ export function registerCronHandlers(mainWindow: BrowserWindow): CronService {
       _event,
       params: {
         name: string;
+        kind?: 'command' | 'agent';
         expression: string;
         command: string;
         cwd: string;
+        repoPath?: string | null;
         enabled: boolean;
       }
     ) => {

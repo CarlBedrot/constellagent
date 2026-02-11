@@ -8,9 +8,11 @@ interface CronState {
   loadJobs: () => Promise<void>;
   addJob: (params: {
     name: string;
+    kind?: 'command' | 'agent';
     expression: string;
     command: string;
     cwd: string;
+    repoPath?: string | null;
     enabled: boolean;
   }) => Promise<boolean>;
   removeJob: (id: string) => Promise<boolean>;
@@ -26,7 +28,14 @@ export const useCronStore = create<CronState>((set, get) => ({
     set({ loading: true });
     const result = await window.api.cron.list();
     if (result.success) {
-      set({ jobs: result.data, loading: false });
+      set({
+        jobs: result.data.map((job) => ({
+          ...job,
+          kind: job.kind ?? 'command',
+          repoPath: job.repoPath ?? null,
+        })),
+        loading: false,
+      });
     } else {
       set({ loading: false });
     }

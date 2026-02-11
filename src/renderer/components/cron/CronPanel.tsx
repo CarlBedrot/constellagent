@@ -14,9 +14,11 @@ export function CronPanel(): React.JSX.Element {
   const toggleJob = useCronStore((s) => s.toggleJob);
   const executeJob = useCronStore((s) => s.executeJob);
   const selectedWorktree = useWorktreeStore((s) => s.selectedWorktree);
+  const repoPath = useWorktreeStore((s) => s.repoPath);
 
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
+  const [kind, setKind] = useState<'command' | 'agent'>('command');
   const [command, setCommand] = useState('');
   const [expression, setExpression] = useState('*/5 * * * *');
   const [submitting, setSubmitting] = useState(false);
@@ -25,19 +27,29 @@ export function CronPanel(): React.JSX.Element {
     loadJobs();
   }, [loadJobs]);
 
+  useEffect(() => {
+    if (kind === 'agent' && !command.trim()) {
+      setCommand('claude');
+    }
+  }, [kind, command]);
+
   const handleAdd = async () => {
     if (!name.trim() || !command.trim() || !expression.trim()) return;
+    if (kind === 'agent' && !repoPath) return;
     setSubmitting(true);
     const ok = await addJob({
       name: name.trim(),
+      kind,
       expression: expression.trim(),
       command: command.trim(),
-      cwd: selectedWorktree ?? process.env.HOME ?? '/',
+      cwd: selectedWorktree ?? repoPath ?? process.env.HOME ?? '/',
+      repoPath: kind === 'agent' ? repoPath : null,
       enabled: true,
     });
     setSubmitting(false);
     if (ok) {
       setName('');
+      setKind('command');
       setCommand('');
       setExpression('*/5 * * * *');
       setShowForm(false);
@@ -114,14 +126,34 @@ export function CronPanel(): React.JSX.Element {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Command</label>
+            <label style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Type</label>
+            <select
+              value={kind}
+              onChange={(e) => setKind(e.target.value as 'command' | 'agent')}
+              style={inputStyle}
+            >
+              <option value="command">Command</option>
+              <option value="agent">Launch agent</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+              {kind === 'agent' ? 'Agent command' : 'Command'}
+            </label>
             <input
               style={inputStyle}
               value={command}
               onChange={(e) => setCommand(e.target.value)}
-              placeholder="e.g. npm run build"
+              placeholder={kind === 'agent' ? 'claude' : 'e.g. npm run build'}
             />
           </div>
+
+          {kind === 'agent' && !repoPath && (
+            <span style={{ fontSize: 11, color: '#ef4444' }}>
+              Select a repository before scheduling agents.
+            </span>
+          )}
 
           <CronExpressionInput value={expression} onChange={setExpression} />
 
@@ -142,7 +174,12 @@ export function CronPanel(): React.JSX.Element {
             </button>
             <button
               onClick={handleAdd}
-              disabled={submitting || !name.trim() || !command.trim()}
+              disabled={
+                submitting ||
+                !name.trim() ||
+                !command.trim() ||
+                (kind === 'agent' && !repoPath)
+              }
               style={{
                 padding: '4px 10px',
                 borderRadius: 4,

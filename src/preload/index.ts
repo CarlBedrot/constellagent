@@ -84,9 +84,11 @@ contextBridge.exposeInMainWorld('api', {
 
     add: (params: {
       name: string;
+      kind?: 'command' | 'agent';
       expression: string;
       command: string;
       cwd: string;
+      repoPath?: string | null;
       enabled: boolean;
     }) => ipcRenderer.invoke(IPC_CHANNELS.CRON_ADD, params),
 
@@ -123,6 +125,9 @@ contextBridge.exposeInMainWorld('api', {
 
     stop: (id: string) =>
       ipcRenderer.invoke(IPC_CHANNELS.AGENT_STOP, id),
+
+    restart: (id: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.AGENT_RESTART, id),
 
     onUpdated: (callback: (agent: unknown) => void) => {
       ipcRenderer.on(

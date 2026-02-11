@@ -26,8 +26,8 @@ export function registerAllHandlers(
   const ptyManager = registerPtyHandlers(mainWindow);
   registerGitHandlers(mainWindow);
   const fileService = registerFileHandlers();
-  const cronService = registerCronHandlers(mainWindow);
   const agentService = registerAgentHandlers(mainWindow, ptyManager);
+  const cronService = registerCronHandlers(mainWindow, agentService);
   registerLayoutHandlers(layoutService);
 
   return { ptyManager, fileService, cronService, layoutService, agentService };

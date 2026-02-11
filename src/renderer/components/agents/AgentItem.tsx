@@ -3,6 +3,9 @@ import type { AgentSession } from '../../../preload/api-types';
 interface AgentItemProps {
   agent: AgentSession;
   onStop: () => void;
+  onRestart: () => void;
+  onOpenTerminal: () => void;
+  onOpenLogs: () => void;
 }
 
 function formatTime(iso: string): string {
@@ -23,6 +26,8 @@ function statusColor(status: AgentSession['status']): string {
       return '#eab308';
     case 'stopping':
       return '#f97316';
+    case 'detached':
+      return '#a1a1aa';
     case 'error':
       return '#ef4444';
     default:
@@ -30,8 +35,15 @@ function statusColor(status: AgentSession['status']): string {
   }
 }
 
-export function AgentItem({ agent, onStop }: AgentItemProps): React.JSX.Element {
+export function AgentItem({
+  agent,
+  onStop,
+  onRestart,
+  onOpenTerminal,
+  onOpenLogs,
+}: AgentItemProps): React.JSX.Element {
   const isActive = agent.status === 'running' || agent.status === 'starting' || agent.status === 'stopping';
+  const canRestart = agent.status === 'detached' || agent.status === 'exited' || agent.status === 'error';
 
   return (
     <div
@@ -69,6 +81,53 @@ export function AgentItem({ agent, onStop }: AgentItemProps): React.JSX.Element 
         >
           {agent.status}
         </span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button
+          onClick={onOpenTerminal}
+          style={{
+            padding: '2px 6px',
+            borderRadius: 4,
+            border: '1px solid var(--border-color)',
+            backgroundColor: 'transparent',
+            color: 'var(--text-secondary)',
+            fontSize: 10,
+            cursor: 'pointer',
+          }}
+        >
+          Terminal
+        </button>
+        <button
+          onClick={onOpenLogs}
+          disabled={!agent.logPath}
+          style={{
+            padding: '2px 6px',
+            borderRadius: 4,
+            border: '1px solid var(--border-color)',
+            backgroundColor: agent.logPath ? 'transparent' : 'var(--bg-secondary)',
+            color: 'var(--text-secondary)',
+            fontSize: 10,
+            cursor: agent.logPath ? 'pointer' : 'default',
+          }}
+        >
+          Logs
+        </button>
+        <button
+          onClick={onRestart}
+          disabled={!canRestart}
+          style={{
+            padding: '2px 6px',
+            borderRadius: 4,
+            border: '1px solid var(--border-color)',
+            backgroundColor: canRestart ? 'transparent' : 'var(--bg-secondary)',
+            color: 'var(--text-secondary)',
+            fontSize: 10,
+            cursor: canRestart ? 'pointer' : 'default',
+          }}
+        >
+          Restart
+        </button>
         <button
           onClick={onStop}
           disabled={!isActive}
@@ -80,6 +139,7 @@ export function AgentItem({ agent, onStop }: AgentItemProps): React.JSX.Element 
             color: 'var(--text-secondary)',
             fontSize: 10,
             cursor: isActive ? 'pointer' : 'default',
+            marginLeft: 'auto',
           }}
         >
           Stop
@@ -125,6 +185,12 @@ export function AgentItem({ agent, onStop }: AgentItemProps): React.JSX.Element 
           <span>Waiting for output...</span>
         )}
       </div>
+
+      {agent.status === 'detached' && (
+        <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+          Detached from previous session. Restart to reconnect.
+        </div>
+      )}
 
       {agent.error && (
         <div style={{ fontSize: 10, color: '#ef4444' }}>{agent.error}</div>

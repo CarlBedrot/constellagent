@@ -71,6 +71,20 @@ export function CronJobItem({ job, onToggle, onExecute, onRemove }: CronJobItemP
         >
           {job.name}
         </span>
+        <span
+          style={{
+            fontSize: 9,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            color: job.kind === 'agent' ? '#38bdf8' : 'var(--text-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 9999,
+            padding: '0 5px',
+          }}
+        >
+          {job.kind === 'agent' ? 'agent' : 'cmd'}
+        </span>
 
         {/* Run now */}
         <span

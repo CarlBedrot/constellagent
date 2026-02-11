@@ -55,5 +55,18 @@ export function registerAgentHandlers(
     }
   });
 
+  ipcMain.handle(IPC_CHANNELS.AGENT_RESTART, async (_event, id: string) => {
+    try {
+      const agent = await agentService.restartAgent(id);
+      if (!agent) return { success: false as const, error: 'Agent not found' };
+      return { success: true as const, data: agent };
+    } catch (error) {
+      return {
+        success: false as const,
+        error: error instanceof Error ? error.message : 'Failed to restart agent',
+      };
+    }
+  });
+
   return agentService;
 }

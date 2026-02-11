@@ -1,11 +1,14 @@
 import { basename, dirname, join } from 'path';
-import { mkdir, access } from 'fs/promises';
+import { mkdir, access, appendFile } from 'fs/promises';
 import { constants as fsConstants } from 'fs';
 import { randomUUID } from 'crypto';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import Store from 'electron-store';
 import { GitService } from './git-service';
 import type { PtyManager } from './pty-manager';
 
-export type AgentStatus = 'starting' | 'running' | 'stopping' | 'exited' | 'error';
+export type AgentStatus = 'starting' | 'running' | 'stopping' | 'detached' | 'exited' | 'error';
 
 export interface AgentSession {
   id: string;
@@ -18,6 +21,7 @@ export interface AgentSession {
   startedAt: string;
   exitCode: number | null;
   lastOutput: string[];
+  logPath: string | null;
   error?: string;
 }
 
@@ -25,14 +29,26 @@ interface AgentInternal extends AgentSession {
   partialLine: string;
 }
 
+interface StoreSchema {
+  agents: AgentSession[];
+}
+
 type UpdateCallback = (agent: AgentSession) => void;
+
+const execFileAsync = promisify(execFile);
 
 export class AgentService {
   private agents = new Map<string, AgentInternal>();
   private updateCallback: UpdateCallback | null = null;
   private gitService = new GitService();
+  private store = new Store<StoreSchema>({
+    name: 'agent-sessions',
+    defaults: { agents: [] },
+  });
 
-  constructor(private ptyManager: PtyManager) {}
+  constructor(private ptyManager: PtyManager) {
+    this.loadPersistedAgents();
+  }
 
   onUpdate(callback: UpdateCallback): void {
     this.updateCallback = callback;
@@ -46,6 +62,12 @@ export class AgentService {
     const command = params.command?.trim() || 'claude';
     const repoPath = params.repoPath;
 
+    if (!(await this.isCommandAvailable(command))) {
+      throw new Error(
+        `Command not found: "${this.extractCommand(command)}". Install Claude Code or set a valid command.`
+      );
+    }
+
     const repoName = basename(repoPath);
     const timestamp = this.formatTimestamp(new Date());
     const branch = `agent/${timestamp}`;
@@ -53,10 +75,9 @@ export class AgentService {
     const agentsRoot = join(dirname(repoPath), 'agents');
     await mkdir(agentsRoot, { recursive: true });
 
+    const agentId = randomUUID();
     const baseName = `${repoName}-agent-${timestamp}`;
     const worktreePath = await this.ensureUniquePath(agentsRoot, baseName);
-
-    const agentId = randomUUID();
     const startedAt = new Date().toISOString();
 
     const agent: AgentInternal = {
@@ -70,6 +91,7 @@ export class AgentService {
       startedAt,
       exitCode: null,
       lastOutput: [],
+      logPath: null,
       partialLine: '',
     };
 
@@ -79,18 +101,23 @@ export class AgentService {
     try {
       await this.gitService.addWorktree(repoPath, worktreePath, branch, true);
 
+      agent.logPath = await this.createLogPath(worktreePath, agentId);
+      this.notify(agent);
+
       const session = this.ptyManager.create(worktreePath);
       agent.sessionId = session.id;
       agent.status = 'running';
       this.notify(agent);
 
-      this.ptyManager.onData(session.id, (_sessionId, data) => {
+      this.ptyManager.onData(session.id, (sessionId, data) => {
+        const current = this.agents.get(agentId);
+        if (!current || current.sessionId !== sessionId) return;
         this.handleOutput(agentId, data);
       });
 
-      this.ptyManager.onExit(session.id, (_sessionId, exitCode) => {
+      this.ptyManager.onExit(session.id, (sessionId, exitCode) => {
         const current = this.agents.get(agentId);
-        if (!current) return;
+        if (!current || current.sessionId !== sessionId) return;
         current.status = 'exited';
         current.exitCode = exitCode ?? null;
         this.notify(current);
@@ -116,11 +143,61 @@ export class AgentService {
     return true;
   }
 
+  async restartAgent(id: string): Promise<AgentSession | null> {
+    const agent = this.agents.get(id);
+    if (!agent) return null;
+
+    if (!(await this.isCommandAvailable(agent.command))) {
+      agent.status = 'error';
+      agent.error = `Command not found: "${this.extractCommand(agent.command)}". Install Claude Code or update the agent command.`;
+      this.notify(agent);
+      return this.toPublic(agent);
+    }
+
+    if (agent.sessionId) {
+      this.ptyManager.destroy(agent.sessionId);
+    }
+
+    if (!agent.logPath) {
+      agent.logPath = await this.createLogPath(agent.worktreePath, agent.id);
+    }
+
+    agent.status = 'starting';
+    agent.exitCode = null;
+    agent.error = undefined;
+    agent.partialLine = '';
+    this.notify(agent);
+
+    const session = this.ptyManager.create(agent.worktreePath);
+    agent.sessionId = session.id;
+    agent.status = 'running';
+    this.notify(agent);
+
+    this.ptyManager.onData(session.id, (sessionId, data) => {
+      const current = this.agents.get(id);
+      if (!current || current.sessionId !== sessionId) return;
+      this.handleOutput(id, data);
+    });
+
+    this.ptyManager.onExit(session.id, (sessionId, exitCode) => {
+      const current = this.agents.get(id);
+      if (!current || current.sessionId !== sessionId) return;
+      current.status = 'exited';
+      current.exitCode = exitCode ?? null;
+      this.notify(current);
+    });
+
+    this.ptyManager.write(session.id, `${agent.command}\n`);
+    return this.toPublic(agent);
+  }
+
   private handleOutput(id: string, chunk: string): void {
     const agent = this.agents.get(id);
     if (!agent) return;
 
     const cleaned = this.stripAnsi(chunk);
+    this.appendToLog(agent, cleaned);
+
     const combined = agent.partialLine + cleaned;
     const parts = combined.split(/\r?\n/);
     agent.partialLine = parts.pop() ?? '';
@@ -142,6 +219,7 @@ export class AgentService {
   }
 
   private notify(agent: AgentInternal): void {
+    this.persistAgents();
     if (this.updateCallback) {
       this.updateCallback(this.toPublic(agent));
     }
@@ -154,6 +232,28 @@ export class AgentService {
 
   private stripAnsi(text: string): string {
     return text.replace(/\x1B\[[0-9;]*m/g, '');
+  }
+
+  private extractCommand(command: string): string {
+    return command.trim().split(/\s+/)[0] ?? command;
+  }
+
+  private async isCommandAvailable(command: string): Promise<boolean> {
+    const binary = this.extractCommand(command);
+    if (!binary) return false;
+
+    const hasSeparator = binary.includes('/') || binary.includes('\\');
+    if (hasSeparator) {
+      return this.pathExists(binary);
+    }
+
+    const tool = process.platform === 'win32' ? 'where' : 'which';
+    try {
+      await execFileAsync(tool, [binary]);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private formatTimestamp(date: Date): string {
@@ -183,5 +283,40 @@ export class AgentService {
     } catch {
       return false;
     }
+  }
+
+  private loadPersistedAgents(): void {
+    const persisted = this.store.get('agents', []);
+    for (const agent of persisted) {
+      const logPath = agent.logPath ?? null;
+      const status =
+        agent.status === 'running' || agent.status === 'starting' || agent.status === 'stopping'
+          ? 'detached'
+          : agent.status;
+
+      this.agents.set(agent.id, {
+        ...agent,
+        logPath,
+        status,
+        sessionId: '',
+        partialLine: '',
+      });
+    }
+  }
+
+  private persistAgents(): void {
+    const snapshot = Array.from(this.agents.values()).map(({ partialLine, ...rest }) => rest);
+    this.store.set('agents', snapshot);
+  }
+
+  private async createLogPath(worktreePath: string, agentId: string): Promise<string> {
+    const logDir = join(worktreePath, '.constellagent');
+    await mkdir(logDir, { recursive: true });
+    return join(logDir, `agent-${agentId}.log`);
+  }
+
+  private appendToLog(agent: AgentSession, data: string): void {
+    if (!agent.logPath) return;
+    void appendFile(agent.logPath, data);
   }
 }
