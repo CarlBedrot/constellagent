@@ -273,8 +273,15 @@ export class AgentService {
     try {
       await execFileAsync(tool, [binary]);
       return true;
-    } catch {
-      return false;
+    } catch (error: unknown) {
+      // `which`/`where` exit with code 1 when the command is not found.
+      // Any other error (e.g. ENOENT for `which` itself missing, or a signal)
+      // is an unexpected failure that should propagate rather than be masked.
+      const isExecError = error && typeof error === 'object' && 'code' in error;
+      if (isExecError && (error as { code: unknown }).code === 1) {
+        return false;
+      }
+      throw error;
     }
   }
 

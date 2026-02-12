@@ -99,7 +99,10 @@ export function WorktreeItem({
         {/* Delete button (not for main worktree) */}
         {!worktree.isMain && (
           <span
-            onClick={handleDelete}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!confirmDelete) handleDelete(e);
+            }}
             style={{
               fontSize: 11,
               color: confirmDelete ? '#ef4444' : 'var(--text-secondary)',
@@ -121,8 +124,11 @@ export function WorktreeItem({
             {confirmDelete ? (
               <>
                 <span
-                  onClick={handleDelete}
-                  style={{ color: '#ef4444' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(e);
+                  }}
+                  style={{ color: '#ef4444', cursor: 'pointer' }}
                   title="Confirm remove"
                 >
                   confirm
@@ -133,7 +139,7 @@ export function WorktreeItem({
                     onRemove(true);
                     resetConfirm();
                   }}
-                  style={{ color: '#ef4444' }}
+                  style={{ color: '#ef4444', cursor: 'pointer' }}
                   title="Force remove (delete untracked files)"
                 >
                   force

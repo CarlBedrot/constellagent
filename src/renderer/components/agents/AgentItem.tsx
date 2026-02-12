@@ -3,6 +3,7 @@ import type { AgentSession } from '../../../preload/api-types';
 
 interface AgentItemProps {
   agent: AgentSession;
+  hasSession: boolean;
   onStop: () => void;
   onRestart: () => void;
   onRemove: () => void;
@@ -40,6 +41,7 @@ function statusColor(status: AgentSession['status']): string {
 
 export function AgentItem({
   agent,
+  hasSession,
   onStop,
   onRestart,
   onRemove,
@@ -102,8 +104,9 @@ export function AgentItem({
             fontSize: 10,
             cursor: 'pointer',
           }}
+          title={hasSession ? 'Focus the Claude session' : 'Open a shell in the agent worktree'}
         >
-          Terminal
+          {hasSession ? 'Claude' : 'Shell'}
         </button>
         <button
           onClick={onOpenLogs}

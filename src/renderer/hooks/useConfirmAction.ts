@@ -15,6 +15,9 @@ export function useConfirmAction(
   const { timeoutMs = 3000 } = options;
   const [confirming, setConfirming] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Use a ref for the callback to avoid stale closures in handleConfirmClick
+  const onConfirmRef = useRef(onConfirm);
+  onConfirmRef.current = onConfirm;
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -34,7 +37,7 @@ export function useConfirmAction(
       if (confirming) {
         clearTimer();
         setConfirming(false);
-        onConfirm();
+        onConfirmRef.current();
         return;
       }
 
@@ -45,11 +48,13 @@ export function useConfirmAction(
         timerRef.current = null;
       }, timeoutMs);
     },
-    [clearTimer, confirming, onConfirm, timeoutMs]
+    [clearTimer, confirming, timeoutMs]
   );
 
-  return { confirming, handleConfirmClick, resetConfirm: () => {
+  const resetConfirm = useCallback(() => {
     clearTimer();
     setConfirming(false);
-  } };
+  }, [clearTimer]);
+
+  return { confirming, handleConfirmClick, resetConfirm };
 }

@@ -14,6 +14,8 @@ export function AgentPanel(): React.JSX.Element {
   const restartAgent = useAgentStore((s) => s.restartAgent);
   const removeAgent = useAgentStore((s) => s.removeAgent);
   const addSession = useTerminalStore((s) => s.addSession);
+  const assignSessionToActivePane = useTerminalStore((s) => s.assignSessionToActivePane);
+  const sessions = useTerminalStore((s) => s.sessions);
   const openFileAtPath = useEditorStore((s) => s.openFileAtPath);
 
   useEffect(() => {
@@ -21,18 +23,30 @@ export function AgentPanel(): React.JSX.Element {
     loadAgents();
   }, [initListeners, loadAgents]);
 
-  const openTerminal = async (worktreePath: string, title: string) => {
+  const openTerminal = async (worktreePath: string, title: string, sessionId?: string) => {
+    if (sessionId && sessions.some((s) => s.id === sessionId)) {
+      assignSessionToActivePane(sessionId);
+      return;
+    }
     const result = await window.api.pty.create(worktreePath);
     if (!result.success) return;
     addSession({ id: result.data.sessionId, title });
+    assignSessionToActivePane(result.data.sessionId);
   };
 
   const openLogTail = async (agent: { worktreePath: string; logPath: string | null; name: string }) => {
     if (!agent.logPath) return;
+    // Validate the log path is under the worktree to prevent path traversal
+    const resolvedWorktree = agent.worktreePath.endsWith('/') ? agent.worktreePath : `${agent.worktreePath}/`;
+    if (!agent.logPath.startsWith(resolvedWorktree) && !agent.logPath.startsWith(agent.worktreePath + '/.constellagent/')) {
+      return;
+    }
     const result = await window.api.pty.create(agent.worktreePath);
     if (!result.success) return;
     addSession({ id: result.data.sessionId, title: `${agent.name} logs` });
-    window.api.pty.write(result.data.sessionId, `tail -n 200 -f \"${agent.logPath}\"\n`);
+    // Use single-quoted path with inner quotes escaped to prevent shell injection
+    const safePath = agent.logPath.replace(/'/g, "'\\''");
+    window.api.pty.write(result.data.sessionId, `tail -n 200 -f '${safePath}'\n`);
   };
 
   const openLogsInEditor = async (agent: { worktreePath: string; logPath: string | null }) => {
@@ -86,13 +100,16 @@ export function AgentPanel(): React.JSX.Element {
         )}
 
         {agents.map((agent) => (
+          // If the agent created a PTY session, focus that instead of spawning a new shell.
+          // This avoids confusion about where the Claude prompt lives.
           <AgentItem
             key={agent.id}
             agent={agent}
+            hasSession={Boolean(agent.sessionId && sessions.some((s) => s.id === agent.sessionId))}
             onStop={() => stopAgent(agent.id)}
             onRestart={() => restartAgent(agent.id)}
             onRemove={() => removeAgent(agent.id)}
-            onOpenTerminal={() => openTerminal(agent.worktreePath, agent.name)}
+            onOpenTerminal={() => openTerminal(agent.worktreePath, agent.name, agent.sessionId)}
             onOpenLogs={() => openLogsInEditor(agent)}
             onTailLogs={() => openLogTail(agent)}
           />
