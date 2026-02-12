@@ -5,9 +5,11 @@ import { TerminalPanel } from './components/terminal/TerminalPanel';
 import { Sidebar } from './components/layout/Sidebar';
 import { EditorPanel } from './components/editor/EditorPanel';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
+import { SettingsModal } from './components/layout/SettingsModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useWorktreeStore } from './store/worktree-store';
 import { useTerminalStore } from './store/terminal-store';
+import type { ThemeName } from './types/theme';
 import '@xterm/xterm/css/xterm.css';
 
 export function App(): React.JSX.Element {
@@ -16,6 +18,8 @@ export function App(): React.JSX.Element {
   const sidebarRef = useRef<ImperativePanelHandle>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [layoutLoaded, setLayoutLoaded] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [theme, setTheme] = useState<ThemeName>('constellagent');
 
   // Saved layout sizes
   const [savedSidebar, setSavedSidebar] = useState(20);
@@ -26,10 +30,13 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     window.api.layout.get().then((result) => {
       if (result.success) {
-        const { sidebarSize, terminalSize, editorSize, lastRepoPath } = result.data;
+        const { sidebarSize, terminalSize, editorSize, lastRepoPath, theme: savedTheme } = result.data;
         setSavedSidebar(sidebarSize);
         setSavedTerminal(terminalSize);
         setSavedEditor(editorSize);
+        if (savedTheme) {
+          setTheme(savedTheme);
+        }
 
         if (lastRepoPath && !useWorktreeStore.getState().repoPath) {
           useWorktreeStore.getState().setRepoPath(lastRepoPath);
@@ -45,6 +52,13 @@ export function App(): React.JSX.Element {
       window.api.layout.save({ lastRepoPath: repoPath });
     }
   }, [repoPath, layoutLoaded]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    if (layoutLoaded) {
+      window.api.layout.save({ theme });
+    }
+  }, [theme, layoutLoaded]);
 
   // Debounced layout save
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -97,6 +111,17 @@ export function App(): React.JSX.Element {
     gap: 8,
   } as React.CSSProperties & { WebkitAppRegion: string };
 
+  const settingsButtonStyle = {
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'transparent',
+    color: 'var(--text-secondary)',
+    fontSize: 11,
+    padding: '2px 8px',
+    borderRadius: 6,
+    cursor: 'pointer',
+    WebkitAppRegion: 'no-drag',
+  } as React.CSSProperties & { WebkitAppRegion: string };
+
   if (!layoutLoaded) {
     return (
       <div
@@ -114,9 +139,9 @@ export function App(): React.JSX.Element {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Title bar */}
-      <div style={titleBarStyle}>
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Title bar */}
+        <div style={titleBarStyle}>
         <span
           style={{
             fontSize: 13,
@@ -142,6 +167,14 @@ export function App(): React.JSX.Element {
             </span>
           </>
         )}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => setShowSettings(true)}
+            style={settingsButtonStyle}
+          >
+            Settings
+          </button>
+        </div>
       </div>
 
       {/* Main layout */}
@@ -200,6 +233,14 @@ export function App(): React.JSX.Element {
           </PanelGroup>
         </Panel>
       </PanelGroup>
+
+      {showSettings && (
+        <SettingsModal
+          theme={theme}
+          onThemeChange={setTheme}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
     </div>
   );
 }

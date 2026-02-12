@@ -75,6 +75,7 @@ export interface LayoutConfig {
     height: number;
     isMaximized: boolean;
   } | null;
+  theme: 'constellagent' | 'claude' | 'codex';
 }
 
 export interface ElectronAPI {

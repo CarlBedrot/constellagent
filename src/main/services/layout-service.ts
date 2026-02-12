@@ -14,6 +14,7 @@ export interface LayoutConfig {
   editorSize: number;
   lastRepoPath: string | null;
   windowBounds: WindowBounds | null;
+  theme: 'constellagent' | 'claude' | 'codex';
 }
 
 const defaults: LayoutConfig = {
@@ -22,6 +23,7 @@ const defaults: LayoutConfig = {
   editorSize: 50,
   lastRepoPath: null,
   windowBounds: null,
+  theme: 'constellagent',
 };
 
 export class LayoutService {
@@ -41,6 +43,7 @@ export class LayoutService {
       editorSize: this.store.get('editorSize', defaults.editorSize),
       lastRepoPath: this.store.get('lastRepoPath', defaults.lastRepoPath),
       windowBounds: this.store.get('windowBounds', defaults.windowBounds),
+      theme: this.store.get('theme', defaults.theme),
     };
   }
 
