@@ -26,6 +26,8 @@ export function AgentPanel(): React.JSX.Element {
   const openTerminal = async (worktreePath: string, title: string, sessionId?: string) => {
     if (sessionId && sessions.some((s) => s.id === sessionId)) {
       assignSessionToActivePane(sessionId);
+      // Trigger a redraw so TUI apps like Claude render immediately.
+      window.api.pty.write(sessionId, '\x0c');
       return;
     }
     const result = await window.api.pty.create(worktreePath);
